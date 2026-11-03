@@ -2,9 +2,13 @@
 
 Define los endpoints con FastAPI y delega toda la lógica de negocio en TiendaService.
 
-Ejecución (desde la carpeta Tienda_online):
+Ejecución (desde la raíz del repositorio):
     pip install -r requirements.txt
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    uvicorn main:app --app-dir src --host 0.0.0.0 --port 8000 --reload
+
+Con Docker:
+    docker build -t tienda-online:1.0.0 -f dockerfile .
+    docker run --rm -p 8000:8000 tienda-online:1.0.0
 
 Con --host 0.0.0.0 la API acepta conexiones de otros equipos de la red local,
 no solo desde localhost.
