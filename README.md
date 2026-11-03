@@ -188,6 +188,9 @@ docker push jjjjjaime9/tienda-online:latest
 
 ### Descargar y ejecutar la imagen publicada
 
+La imagen es pública en Docker Hub: https://hub.docker.com/r/jjjjjaime9/tienda-online
+(etiquetas `1.0.0` y `latest`). No hace falta clonar el repositorio:
+
 ```bash
 docker pull jjjjjaime9/tienda-online:1.0.0
 docker run --rm -p 8000:8000 jjjjjaime9/tienda-online:1.0.0
