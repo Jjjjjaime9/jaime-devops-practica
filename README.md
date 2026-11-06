@@ -1,6 +1,6 @@
 # Tienda-Online-A-S
 
-**Autor:** Jjjjjaime9
+**Autor:** Jaime Calviño Rodríguez ([@Jjjjjaime9](https://github.com/Jjjjjaime9))
 
 ## Descripción
 
