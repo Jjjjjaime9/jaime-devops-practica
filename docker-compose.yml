@@ -1,0 +1,37 @@
+# Une los dos contenedores de la Tienda Online:
+#   - api:      API REST (este repositorio, dockerfile de la raíz)      -> http://localhost:8000
+#   - frontend: nginx con el frontend (repositorio jaime-devops-frontend) -> http://localhost:8080
+#
+# Los dos están en la misma red de Docker, así que nginx llega a la API por el nombre
+# del servicio (http://api:8000) y el navegador solo necesita hablar con el frontend.
+#
+#   docker compose up --build
+#
+# El frontend se construye directamente desde su repositorio de GitHub. Para usar una copia
+# local del repositorio:  FRONTEND_CONTEXT=../jaime-devops-frontend docker compose up --build
+services:
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: tienda-online:1.0.0
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ${FRONTEND_CONTEXT:-https://github.com/Jjjjjaime9/jaime-devops-frontend.git#main}
+    image: tienda-frontend:1.0.0
+    ports:
+      - "8080:8080"
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
