@@ -5,8 +5,7 @@
 ## Descripción
 
 API REST en Python (FastAPI) que modela una tienda online, con un cliente Python y un frontend web
-que la consumen por HTTP. El frontend está en su propio repositorio,
-[jaime-devops-frontend](https://github.com/Jjjjjaime9/jaime-devops-frontend), con su propio
+que la consumen por HTTP. La API y el frontend están en carpetas distintas, cada una con su propio
 Dockerfile, y `docker-compose.yml` une los dos contenedores.
 
 El sistema permite:
@@ -25,7 +24,7 @@ solo validan los datos (esquemas de Pydantic) y delegan en el servicio.
 
 ```
 Tienda-Online-A-S/
-├── src/                         ← API REST (lo que va en la imagen Docker)
+├── src/                         ← API REST (lo que va en la imagen de la API)
 │   ├── main.py                  # Endpoints FastAPI
 │   ├── datos_ejemplo.py         # Usuarios, productos y pedidos cargados al arrancar
 │   ├── models/                  # Producto, Usuario, Cliente, Administrador, Pedido
@@ -34,11 +33,18 @@ Tienda-Online-A-S/
 │   │   ├── tienda_service.py    # TiendaService
 │   │   └── excepciones.py       # Errores de negocio (stock, email duplicado, ...)
 │   └── imagenes/                # Fotos de los productos, servidas en /imagenes/<fichero>
+├── frontend/                    ← frontend web (lo que va en la imagen del frontend)
+│   ├── index.html, app.js, styles.css
+│   ├── config.js                # Dirección de la API sin Docker (vacío = puerto 8000)
+│   ├── config.docker.js         # Dirección de la API en Docker (/api del mismo origen)
+│   ├── nginx.conf.template      # nginx: estáticos + proxy inverso de /api/ a la API
+│   ├── Dockerfile               # Imagen del frontend
+│   └── .dockerignore
 ├── cliente/cliente.py           ← cliente Python (requests)
 ├── requirements.txt             # Dependencias de la API con versiones fijadas
 ├── dockerfile                   # Imagen de la API
-├── docker-compose.yml           # Une la API y el frontend
-└── .dockerignore
+├── .dockerignore                # De la imagen de la API
+└── docker-compose.yml           # Une la API y el frontend
 ```
 
 Ni el cliente ni el frontend importan `TiendaService` ni los modelos: solo conocen los endpoints.
@@ -93,12 +99,10 @@ Crea usuarios, productos y un pedido, consulta los listados y comprueba los erro
 
 ### Frontend
 
-El frontend web (tienda con carrito, historial de pedidos y panel de administración) está en el
-repositorio [jaime-devops-frontend](https://github.com/Jjjjjaime9/jaime-devops-frontend). Sin
-Docker, desde una copia de ese repositorio:
+Frontend web con tienda, carrito, historial de pedidos y panel de administración. Sin Docker:
 
 ```bash
-python -m http.server 5500
+python -m http.server 5500 --directory frontend
 ```
 
 Abre http://localhost:5500. La página usa la API del mismo equipo en el puerto 8000 (se puede
@@ -109,8 +113,8 @@ cambiar desde el icono de conexión de la cabecera). Con Docker, ver
 
 La imagen se basa en `python:3.12-slim`, instala `requirements.txt`, copia solo `src/` y
 arranca la API con uvicorn en el puerto 8000, con un usuario sin privilegios (`appuser`).
-El `.dockerignore` deja fuera `.git`, entornos virtuales, cachés de Python, tests, el cliente
-y el `docker-compose.yml`.
+El `.dockerignore` deja fuera `.git`, entornos virtuales, cachés de Python, tests, el cliente,
+el frontend (tiene su propia imagen) y el `docker-compose.yml`.
 
 ### Construir la imagen
 
@@ -218,13 +222,12 @@ docker push jjjjjaime9/tienda-online:1.0.0
 
 ## Docker Compose (API + frontend)
 
-La aplicación completa son **dos imágenes, cada una en su repositorio y con su propio
-Dockerfile**:
+La aplicación completa son **dos imágenes, cada una en su carpeta y con su propio Dockerfile**:
 
-| Servicio | Repositorio | Imagen | Puerto |
+| Servicio | Carpeta y Dockerfile | Imagen | Puerto |
 |---|---|---|---|
-| `api` | este (`dockerfile`) | `tienda-online:1.0.0` (python:3.12-slim + uvicorn) | 8000 |
-| `frontend` | [jaime-devops-frontend](https://github.com/Jjjjjaime9/jaime-devops-frontend) (`Dockerfile`) | `tienda-frontend:1.0.0` (nginx sin privilegios) | 8080 |
+| `api` | raíz · `dockerfile` (código en `src/`) | `tienda-online:1.0.0` (python:3.12-slim + uvicorn) | 8000 |
+| `frontend` | `frontend/` · `frontend/Dockerfile` | `tienda-frontend:1.0.0` (nginx sin privilegios) | 8080 |
 
 `docker-compose.yml` los une: los dos contenedores comparten la red de Docker del compose y
 nginx reenvía las peticiones de `/api/` al servicio `api` por su nombre (proxy inverso), de modo
@@ -239,17 +242,17 @@ El frontend espera a que la API esté sana (`healthcheck` + `depends_on: conditi
 
 ### Arrancar
 
-Desde la raíz de este repositorio (compose construye el frontend directamente desde su
-repositorio de GitHub, no hace falta clonarlo):
+Desde la raíz del repositorio:
 
 ```bash
 docker compose up --build
 ```
 
-Con una copia local del repositorio del frontend al lado de este:
+Cada imagen también se puede construir por separado:
 
 ```bash
-FRONTEND_CONTEXT=../jaime-devops-frontend docker compose up --build
+docker build -t tienda-online:1.0.0 -f dockerfile .
+docker build -t tienda-frontend:1.0.0 frontend
 ```
 
 ### Probar
@@ -275,5 +278,4 @@ docker compose down
 
 | Variable | Valor por defecto | Para qué |
 |---|---|---|
-| `FRONTEND_CONTEXT` | `https://github.com/Jjjjjaime9/jaime-devops-frontend.git#main` | De dónde se construye la imagen del frontend |
 | `API_URL` (servicio `frontend`) | `http://api:8000` | A dónde reenvía nginx las peticiones de `/api/` |

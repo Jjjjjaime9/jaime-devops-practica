@@ -17,7 +17,7 @@ Documentación interactiva: http://127.0.0.1:8000/docs
 Fotos de los productos: se guardan en la carpeta imagenes/ y la API las sirve en /imagenes/<fichero>.
 Para dar de alta un producto con una foto nueva, primero se sube con POST /imagenes y luego se
 envía el nombre devuelto en el campo `imagen` de POST /productos.
-Frontend: está en su propio repositorio (jaime-devops-frontend). Para arrancar la API y el
+Frontend: está en la carpeta frontend/, con su propio Dockerfile. Para arrancar la API y el
 frontend juntos con Docker:
     docker compose up --build
 y abrir http://localhost:8080
