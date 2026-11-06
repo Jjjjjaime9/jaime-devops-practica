@@ -1,0 +1,6 @@
+# Contexto de construcción de la imagen del frontend (carpeta frontend/)
+Dockerfile
+.dockerignore
+config.js
+.DS_Store
+Thumbs.db
