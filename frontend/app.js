@@ -5,10 +5,12 @@
 // Dirección de la API por defecto: el mismo equipo que sirve la página, en el puerto 8000
 // (si se abre como fichero, localhost). Así, si un compañero abre http://192.168.1.34:5500,
 // la página usa la API de http://192.168.1.34:8000. Se puede cambiar desde la cabecera
-// de la página (icono de conexión).
-const API_URL_POR_DEFECTO = location.protocol.startsWith("http")
-  ? `http://${location.hostname}:8000`
-  : "http://localhost:8000";
+// de la página (icono de conexión). Si config.js indica una dirección (en Docker, /api del
+// mismo origen), se usa esa.
+const API_URL_POR_DEFECTO = (window.TIENDA_CONFIG && window.TIENDA_CONFIG.apiUrl)
+  || (location.protocol.startsWith("http")
+    ? `http://${location.hostname}:8000`
+    : "http://localhost:8000");
 let API_URL = leerGuardado("api_url") || API_URL_POR_DEFECTO;
 
 // Estado de la página. Productos, usuarios y pedidos son copias de lo que devuelve

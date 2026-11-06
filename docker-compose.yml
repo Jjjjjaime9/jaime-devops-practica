@@ -1,0 +1,40 @@
+# Une los dos contenedores de la Tienda Online, cada uno con su propio Dockerfile:
+#   - api:      API REST (dockerfile de la raíz, código en src/)  -> http://localhost:8000
+#   - frontend: nginx con el frontend (frontend/Dockerfile)        -> http://localhost:8080
+#
+# Los dos están en la misma red de Docker, así que nginx llega a la API por el nombre
+# del servicio (http://api:8000) y el navegador solo necesita hablar con el frontend.
+#
+#   docker compose up --build
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: tienda-online:1.0.0
+    ports:
+      - "8000:8000"
+    healthcheck:
+      # La imagen slim no trae curl: se comprueba con Python que la API responde
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+    image: tienda-frontend:1.0.0
+    ports:
+      - "8080:8080"
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
