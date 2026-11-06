@@ -11,4 +11,4 @@ venv/
 .DS_Store
 tests/
 cliente/
-frontend/
+docker-compose.yml
