@@ -18,7 +18,12 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      # La imagen slim no trae curl: se comprueba con Python que la API responde
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')
       interval: 5s
       timeout: 3s
       retries: 10
