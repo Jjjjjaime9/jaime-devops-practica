@@ -5,7 +5,9 @@
 ## Descripción
 
 API REST en Python (FastAPI) que modela una tienda online, con un cliente Python y un frontend web
-que la consumen por HTTP.
+que la consumen por HTTP. El frontend está en su propio repositorio,
+[jaime-devops-frontend](https://github.com/Jjjjjaime9/jaime-devops-frontend), con su propio
+Dockerfile, y `docker-compose.yml` une los dos contenedores.
 
 El sistema permite:
 
@@ -33,9 +35,9 @@ Tienda-Online-A-S/
 │   │   └── excepciones.py       # Errores de negocio (stock, email duplicado, ...)
 │   └── imagenes/                # Fotos de los productos, servidas en /imagenes/<fichero>
 ├── cliente/cliente.py           ← cliente Python (requests)
-├── frontend/                    ← frontend web (HTML + JS)
 ├── requirements.txt             # Dependencias de la API con versiones fijadas
-├── dockerfile
+├── dockerfile                   # Imagen de la API
+├── docker-compose.yml           # Une la API y el frontend
 └── .dockerignore
 ```
 
@@ -91,20 +93,24 @@ Crea usuarios, productos y un pedido, consulta los listados y comprueba los erro
 
 ### Frontend
 
+El frontend web (tienda con carrito, historial de pedidos y panel de administración) está en el
+repositorio [jaime-devops-frontend](https://github.com/Jjjjjaime9/jaime-devops-frontend). Sin
+Docker, desde una copia de ese repositorio:
+
 ```bash
-python -m http.server 5500 --directory frontend
+python -m http.server 5500
 ```
 
 Abre http://localhost:5500. La página usa la API del mismo equipo en el puerto 8000 (se puede
-cambiar desde el icono de conexión de la cabecera). Tiene tienda con carrito, historial de pedidos
-y panel de administración.
+cambiar desde el icono de conexión de la cabecera). Con Docker, ver
+[Docker Compose](#docker-compose-api--frontend).
 
 ## Docker
 
 La imagen se basa en `python:3.12-slim`, instala `requirements.txt`, copia solo `src/` y
 arranca la API con uvicorn en el puerto 8000, con un usuario sin privilegios (`appuser`).
 El `.dockerignore` deja fuera `.git`, entornos virtuales, cachés de Python, tests, el cliente
-y el frontend.
+y el `docker-compose.yml`.
 
 ### Construir la imagen
 
@@ -166,8 +172,8 @@ Con el contenedor en marcha:
 4. http://localhost:8000/imagenes/MacBook_NEO.jpg muestra la foto del producto.
 5. `python cliente/cliente.py` recorre todos los endpoints y termina con
    `Flujo completado correctamente.`
-6. `python -m http.server 5500 --directory frontend` y http://localhost:5500 muestra la tienda
-   con los productos del contenedor.
+6. Con `docker compose up --build`, http://localhost:8080 muestra la tienda con los productos
+   del contenedor de la API (ver [Docker Compose](#docker-compose-api--frontend)).
 
 Comprobar que el contenedor no se ejecuta como root:
 
@@ -209,3 +215,65 @@ docker stop tienda && docker rm tienda
 docker tag tienda-online:1.0.0 jjjjjaime9/tienda-online:1.0.0
 docker push jjjjjaime9/tienda-online:1.0.0
 ```
+
+## Docker Compose (API + frontend)
+
+La aplicación completa son **dos imágenes, cada una en su repositorio y con su propio
+Dockerfile**:
+
+| Servicio | Repositorio | Imagen | Puerto |
+|---|---|---|---|
+| `api` | este (`dockerfile`) | `tienda-online:1.0.0` (python:3.12-slim + uvicorn) | 8000 |
+| `frontend` | [jaime-devops-frontend](https://github.com/Jjjjjaime9/jaime-devops-frontend) (`Dockerfile`) | `tienda-frontend:1.0.0` (nginx sin privilegios) | 8080 |
+
+`docker-compose.yml` los une: los dos contenedores comparten la red de Docker del compose y
+nginx reenvía las peticiones de `/api/` al servicio `api` por su nombre (proxy inverso), de modo
+que el navegador solo habla con el frontend:
+
+```text
+navegador ──► http://localhost:8080        frontend (nginx)
+              http://localhost:8080/api/... ──► http://api:8000/...   api (uvicorn)
+```
+
+El frontend espera a que la API esté sana (`healthcheck` + `depends_on: condition: service_healthy`).
+
+### Arrancar
+
+Desde la raíz de este repositorio (compose construye el frontend directamente desde su
+repositorio de GitHub, no hace falta clonarlo):
+
+```bash
+docker compose up --build
+```
+
+Con una copia local del repositorio del frontend al lado de este:
+
+```bash
+FRONTEND_CONTEXT=../jaime-devops-frontend docker compose up --build
+```
+
+### Probar
+
+1. http://localhost:8080 muestra la tienda con los 5 productos y sus fotos.
+2. `curl http://localhost:8080/api/productos` devuelve los productos a través de nginx.
+3. http://localhost:8080/api/docs abre Swagger a través de nginx.
+4. La API sigue accesible directamente en http://localhost:8000 (`python cliente/cliente.py`).
+5. Ninguno de los dos contenedores se ejecuta como root:
+
+   ```bash
+   docker compose exec api whoami        # appuser
+   docker compose exec frontend whoami   # nginx
+   ```
+
+### Parar
+
+```bash
+docker compose down
+```
+
+### Variables de entorno del compose
+
+| Variable | Valor por defecto | Para qué |
+|---|---|---|
+| `FRONTEND_CONTEXT` | `https://github.com/Jjjjjaime9/jaime-devops-frontend.git#main` | De dónde se construye la imagen del frontend |
+| `API_URL` (servicio `frontend`) | `http://api:8000` | A dónde reenvía nginx las peticiones de `/api/` |
